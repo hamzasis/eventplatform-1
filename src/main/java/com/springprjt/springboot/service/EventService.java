@@ -1,5 +1,6 @@
 package com.springprjt.springboot.service;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -35,6 +36,18 @@ public class EventService {
     }
     public void deleteEvent(Long id) {
         eventRepository.deleteById(id);
+    }
+    
+    public List<Event> getEventsByNameOrLocation(String title, String location) {
+        if (title != null && location != null) {
+            return eventRepository.findByTitleAndLocation(title, location);
+        } else if (title != null) {
+            return eventRepository.findByTitle(title);
+        } else if (location != null) {
+            return eventRepository.findByLocation(location);
+        } else {
+            return new ArrayList<>(); // Return empty list if neither is provided
+        }
     }
 
     public Map<Event, Long> getEventsWithRegistrationCounts() {

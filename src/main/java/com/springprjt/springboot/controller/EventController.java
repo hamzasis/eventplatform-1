@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.springprjt.springboot.model.Event;
@@ -47,60 +48,68 @@ public class EventController {
     }
 
     @GetMapping("/events")
-    public ResponseEntity<?> getEvents(@RequestHeader("Authorization") String token) {
+    public ResponseEntity<?> getEvents(@RequestHeader("Authorization") String token, 
+                                       @RequestParam(value = "title", required = false) String title,
+                                       @RequestParam(value = "location", required = false) String location) {
         try {
-            System.out.println("Authorization Header: " + token);
-
-            String extractedToken = token.substring(7);
-            System.out.println("Extracted Token: " + extractedToken);
-
-            jwtUtil.printTokenContent(extractedToken);
-
+            // Print the token (for debugging)
+            String extractedToken = token.substring(7);  // Remove "Bearer "
             String role = jwtUtil.extractRole(extractedToken);
-            System.out.println("Role extracted from token: " + role);
+            
+            if ("ADMIN".equalsIgnoreCase(role) || "ORGANIZER".equalsIgnoreCase(role)) {
+                List<Event> events = eventService.getEventsByNameOrLocation(title, location);
 
-            if ("ADMIN".equalsIgnoreCase(role)) {
-                System.out.println("Access Granted: ADMIN Role");
-                List<Event> events = eventService.getAllEvents();
+                if (events.isEmpty()) {
+                    return ResponseEntity.status(HttpStatus.NOT_FOUND).body("No events found matching the search criteria.");
+                }
+
                 return ResponseEntity.ok(events);
             } else {
-                System.out.println("Access Denied: Role is " + role);
-                return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                        .body("You are not authorized to access this resource.");
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Access denied. You do not have permission.");
             }
         } catch (Exception e) {
-            System.out.println("Error: " + e.getMessage());
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body("Invalid or malformed token.");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid or malformed token.");
         }
     }
     @GetMapping("/{id}")
-    public ResponseEntity<?> getEventById(
+    public ResponseEntity<?> getEventByNameOrLocation(
             @RequestHeader("Authorization") String token,
-            @PathVariable Long id) {
+            @RequestParam(value = "title", required = false) String title,
+            @RequestParam(value = "location", required = false) String location) {
         try {
+            // Debug: Print raw token
             System.out.println("Authorization Header: " + token);
 
+            // Remove "Bearer " prefix
             String extractedToken = token.substring(7);
             System.out.println("Extracted Token: " + extractedToken);
 
+            // Print token content (optional, for debugging)
             jwtUtil.printTokenContent(extractedToken);
 
+            // Extract role
             String role = jwtUtil.extractRole(extractedToken);
             System.out.println("Role extracted from token: " + role);
 
+            // Check role (any authenticated user can view an event)
             if ("ADMIN".equalsIgnoreCase(role) ||
                 "ORGANIZER".equalsIgnoreCase(role)) {
-                
-                Event event = eventService.getEventById(id);
 
-                if (event != null) {
-                    System.out.println("Event found: " + event.getTitle());
-                    return ResponseEntity.ok(event);
+                // Search by name or location (at least one parameter must be provided)
+                if (title != null || location != null) {
+                    List<Event> events = eventService.getEventsByNameOrLocation(title, location);
+                    
+                    if (!events.isEmpty()) {
+                        System.out.println("Found " + events.size() + " events matching the search criteria.");
+                        return ResponseEntity.ok(events);
+                    } else {
+                        System.out.println("No events found matching the search criteria.");
+                        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                                .body("No events found.");
+                    }
                 } else {
-                    System.out.println("Event not found for ID: " + id);
-                    return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                            .body("Event not found.");
+                    return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                            .body("Please provide either a name or location for search.");
                 }
             } else {
                 System.out.println("Access Denied: Role is " + role);
