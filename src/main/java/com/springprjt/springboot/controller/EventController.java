@@ -185,17 +185,5 @@ public class EventController {
                     .body("Invalid or malformed token.");
         }
     }
-    
-    @GetMapping("/admin/with-registration-counts")
-    public ResponseEntity<Map<Event, Long>> getEventsWithRegistrationCounts(@RequestHeader("Authorization") String token) {
-        String role = jwtUtil.extractRole(token.substring(7));
-
-        if ("ADMIN".equals(role)) {
-            Map<Event, Long> eventsWithCounts = eventService.getEventsWithRegistrationCounts();
-            return ResponseEntity.ok(eventsWithCounts);
-        } else {
-            return ResponseEntity.status(403).build();
-        }
-    }
 	
 }
